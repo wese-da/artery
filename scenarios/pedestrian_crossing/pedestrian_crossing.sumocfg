@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-06-18 14:56:33 by Eclipse SUMO GUI Version v1_19_0+1709-9893dd61bc5
+-->
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="pedestrian_crossing_crossings.net.xml"/>
+	    <!--<net-file value="pedestrian_crossing.net.xml"/>-->
+        <route-files value="pedestrian_crossing.rou.xml"/>
+    </input>
+
+</configuration>
