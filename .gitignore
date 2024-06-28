@@ -8,6 +8,9 @@ src/artery/messages/*_m.cc
 src/artery/messages/*_m.h
 .vagrant/
 
+**/*.swp
+**/*kdev4
+
 # Building website with mkdocs
 www/
 venv/
