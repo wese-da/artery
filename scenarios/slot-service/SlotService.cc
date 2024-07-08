@@ -15,19 +15,21 @@
 
 #include "SlotService.h"
 #include "artery/traci/VehicleController.h"
+#include "artery/application/VehicleDataProvider.h"
+#include "artery/application/DenmObject.h"
 #include <omnetpp/cpacket.h>
+#include <vanetza/asn1/denm.hpp>
 #include <vanetza/btp/data_request.hpp>
-#include <vanetza/dcc/profile.hpp>
-#include <vanetza/geonet/interface.hpp>
-
-using namespace omnetpp;
-using namespace vanetza;
+#include <vanetza/btp/ports.hpp>
 
 namespace artery
 {
 
+using namespace omnetpp;
+
 static const simsignal_t scSignalCamReceived = cComponent::registerSignal("CamReceived");
 static const simsignal_t scSignalDenmReceived = cComponent::registerSignal("DenmReceived");
+static const simsignal_t scSignalDenmSent = cComponent::registerSignal("DenmSent");
 
 Define_Module(SlotService)
 
@@ -40,31 +42,31 @@ SlotService::~SlotService()
 	cancelAndDelete(m_self_msg);
 }
 
-void SlotService::indicate(const btp::DataIndication& ind, cPacket* packet, const NetworkInterface& net)
+void SlotService::indicate(const vanetza::btp::DataIndication&, std::unique_ptr<vanetza::UpPacket>)
 {
 	Enter_Method("indicate");
 
-	if (packet->getByteLength() == 42) {
-		EV_INFO << "packet indication on channel " << net.channel << "\n";
-	}
+	//if (packet->getByteLength() == 42) {
+	//	EV_INFO << "packet indication on channel " << net.channel << "\n";
+	//}
 
-	delete(packet);
+	//delete(packet);
 }
 
 void SlotService::initialize()
 {
-	ItsG5Service::initialize();
-	m_self_msg = new cMessage("Example Service");
+	ItsG5BaseService::initialize();
+	mVehicleDataProvider = &getFacilities().get_const<VehicleDataProvider>();
 	subscribe(scSignalCamReceived);
 	subscribe(scSignalDenmReceived);
 
-	scheduleAt(simTime() + 3.0, m_self_msg);
+	//scheduleAt(simTime() + 3.0, m_self_msg);
 }
 
 void SlotService::finish()
 {
 	// you could record some scalars at this point
-	ItsG5Service::finish();
+	ItsG5BaseService::finish();
 }
 
 void SlotService::handleMessage(cMessage* msg)
@@ -80,33 +82,43 @@ void SlotService::trigger()
 {
 	Enter_Method("trigger");
 
-	// use an ITS-AID reserved for testing purposes
-	static const vanetza::ItsAid example_its_aid = 16480;
+	sendDenm();
 
-	auto& mco = getFacilities().get_const<MultiChannelPolicy>();
-	auto& networks = getFacilities().get_const<NetworkInterfaceTable>();
 
-	for (auto channel : mco.allChannels(example_its_aid)) {
-		auto network = networks.select(channel);
-		if (network) {
-			btp::DataRequestB req;
-			// use same port number as configured for listening on this channel
-			req.destination_port = host_cast(getPortNumber(channel));
-			req.gn.transport_type = geonet::TransportType::SHB;
-			req.gn.traffic_class.tc_id(static_cast<unsigned>(dcc::Profile::DP3));
-			req.gn.communication_profile = geonet::CommunicationProfile::ITS_G5;
-			req.gn.its_aid = example_its_aid;
-
-			cPacket* packet = new cPacket("Example Service Packet");
-			packet->setByteLength(42);
-
-			// send packet on specific network interface
-			request(req, packet, network.get());
-		} else {
-			EV_ERROR << "No network interface available for channel " << channel << "\n";
-		}
-	}
 }
+
+void SlotService::sendDenm()
+{
+	auto message = createDecentralizedEnvironmentalNotificationMessage(*mVehicleDataProvider);
+
+	using namespace vanetza;
+	btp::DataRequestB request;
+	request.destination_port = btp::ports::DENM;
+	request.gn.its_aid = aid::DEN;
+	request.gn.transport_type = geonet::TransportType::GBC;
+	request.gn.maximum_lifetime = geonet::Lifetime { geonet::Lifetime::Base::One_Second, 1 };
+	request.gn.traffic_class.tc_id(static_cast<unsigned>(dcc::Profile::DP2));
+	request.gn.communication_profile = geonet::CommunicationProfile::ITS_G5;
+
+	DenmObject obj(std::move(message));
+	emit(scSignalDenmSent, &obj);
+
+	using DenmByteBuffer = convertible::byte_buffer_impl<asn1::Denm>;
+	std::unique_ptr<geonet::DownPacket> payload { new geonet::DownPacket() };
+	std::unique_ptr<convertible::byte_buffer> buffer { new DenmByteBuffer(obj.shared_ptr()) };
+	payload->layer(OsiLayer::Application) = std::move(buffer);
+	this->request(request, std::move(payload));
+
+}
+
+void SlotService::addManagementContainer(ManagementContainer_t& management)
+{
+
+	management.actionID.sequenceNumber = mSequenceNumber;
+	mSequenceNumber++;
+
+}
+
 
 void SlotService::receiveSignal(cComponent* source, simsignal_t signal, cObject*, cObject*)
 {
@@ -116,6 +128,31 @@ void SlotService::receiveSignal(cComponent* source, simsignal_t signal, cObject*
 		auto& vehicle = getFacilities().get_const<traci::VehicleController>();
 		EV_INFO << "Vehicle " << vehicle.getVehicleId() << " received a CAM in sibling serivce\n";
 	}
+}
+
+vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage(const VehicleDataProvider& vdp)
+{
+
+	vanetza::asn1::Denm message;
+
+	// fill header
+	ItsPduHeader_t header = (*message).header;
+	header.protocolVersion = 2;
+	header.messageID = ItsPduHeader__messageID_denm;
+	header.stationID = vdp.station_id();
+
+	// fill message
+	DecentralizedEnvironmentalNotificationMessage_t denm = (*message).denm;
+	ManagementContainer_t& management = denm.management;
+	LocationContainer* location = denm.location;
+	SituationContainer* situation = denm.situation;
+	AlacarteContainer* alacarte = denm.alacarte;
+
+	// management
+	management.actionID.originatingStationID = vdp.station_id();
+
+	return message;
+
 }
 
 } // namespace artery

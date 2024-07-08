@@ -11,4 +11,8 @@
         <additional-files value="vtypes.add.xml"/>
     </input>
 
+    <time>
+        <step-length value="0.1"/>
+    </time>
+
 </configuration>

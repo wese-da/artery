@@ -16,19 +16,23 @@
 #ifndef SLOTSERVICE_H_
 #define SLOTSERVICE_H_
 
-#include "artery/application/ItsG5Service.h"
+#include "artery/application/ItsG5BaseService.h"
 #include "artery/application/NetworkInterface.h"
+#include <vanetza/asn1/denm.hpp>
+//#include "artery/application/VehicleDataProvider.h"
 
 namespace artery
 {
 
-class SlotService : public ItsG5Service
+class VehicleDataProvider;
+
+class SlotService : public ItsG5BaseService
 {
     public:
         SlotService();
         ~SlotService();
 
-        void indicate(const vanetza::btp::DataIndication&, omnetpp::cPacket*, const NetworkInterface&) override;
+		void indicate(const vanetza::btp::DataIndication&, std::unique_ptr<vanetza::UpPacket>) override;
         void trigger() override;
         void receiveSignal(omnetpp::cComponent*, omnetpp::simsignal_t, omnetpp::cObject*, omnetpp::cObject*) override;
 
@@ -38,8 +42,17 @@ class SlotService : public ItsG5Service
         void handleMessage(omnetpp::cMessage*) override;
 
     private:
+        void sendDenm();
+        void addManagementContainer(ManagementContainer_t& management);
         omnetpp::cMessage* m_self_msg;
+		const Timer* mTimer = nullptr;
+
+		const VehicleDataProvider* mVehicleDataProvider = nullptr;
+
+        long mSequenceNumber = 1L;
 };
+
+vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage(const VehicleDataProvider&);
 
 } // namespace artery
 

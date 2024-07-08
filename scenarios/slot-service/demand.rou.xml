@@ -4,5 +4,6 @@
         <stop lane="01_0" endPos="740" duration="5" />
         </vehicle>00>-->
     <vTypeDistribution id="typedist1" vTypes="legacy cav"/>
-    <flow id="flow0" begin="0" end= "3600" probability="1.0" type="typedist1" from="01" to="12" departSpeed="max" departLane="random"/>
+    <flow id="flow0" begin="0" end= "360" probability="0.5" type="cav" from="01" to="12" departSpeed="max" departLane="random"/>
+    <flow id="flow1" begin="0" end= "360" probability="0.5" type="legacy" from="01" to="12" departSpeed="max" departLane="random"/>
 </routes>

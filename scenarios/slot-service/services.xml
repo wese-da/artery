@@ -7,7 +7,7 @@
 			<!--<type pattern="artery.inet.Person" match="inverse" />-->
 		</filters>
 	</service>
-	<service type="artery.application.ExampleService">
+	<service type="SlotService">
 		<listener port="4711" />
 		<filters>
 			<name pattern="flow0\.1.*" />

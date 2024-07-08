@@ -11,4 +11,9 @@
         <route-files value="pedestrian_crossing.rou.xml"/>
     </input>
 
+    <output>
+	    <tripinfo-output value="tripinfos.out.xml"/>
+	    <personinfo-output value="personinfos.out.xml"/>
+    </output>
+
 </configuration>
