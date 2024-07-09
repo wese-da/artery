@@ -71,6 +71,7 @@ add_library(core SHARED
     utility/IdentityRegistry.cc
     utility/FilterRules.cc
     utility/Geometry.cc
+    application/SlotService.cc
 )
 target_link_libraries(artery INTERFACE core)
 add_library(Artery::Core ALIAS core)

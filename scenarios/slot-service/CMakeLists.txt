@@ -1,3 +1,5 @@
-add_artery_feature(slots SlotService.cc)
-#add_opp_run(slot-service CONFIG omnetpp.ini )
-add_opp_run(slot-service CONFIG omnetpp.ini NED_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR})
+#add_artery_feature(slots SlotService.cc)
+#generate_opp_message(SlotService.msg TARGET slots DIRECTORY slot_msgs)
+#add_opp_run(slot-service )
+add_opp_run(slot-service CONFIG omnetpp.ini )
+#add_opp_run(slot-service CONFIG omnetpp.ini NED_FOLDERS ${CMAKE_CURRENT_SOURCE_DIR})

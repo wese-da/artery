@@ -16,7 +16,7 @@
 #ifndef SLOTSERVICE_H_
 #define SLOTSERVICE_H_
 
-#include "artery/application/ItsG5BaseService.h"
+#include "artery/application/ItsG5Service.h"
 #include "artery/application/NetworkInterface.h"
 #include <vanetza/asn1/denm.hpp>
 //#include "artery/application/VehicleDataProvider.h"
@@ -26,13 +26,15 @@ namespace artery
 
 class VehicleDataProvider;
 
-class SlotService : public ItsG5BaseService
+//namespace traci { class VehicleController; }
+
+class SlotService : public ItsG5Service
 {
     public:
         SlotService();
-        ~SlotService();
+        // ~SlotService();
 
-		void indicate(const vanetza::btp::DataIndication&, std::unique_ptr<vanetza::UpPacket>) override;
+		void indicate(const vanetza::btp::DataIndication&, std::unique_ptr<vanetza::UpPacket>, const NetworkInterface&) override;
         void trigger() override;
         void receiveSignal(omnetpp::cComponent*, omnetpp::simsignal_t, omnetpp::cObject*, omnetpp::cObject*) override;
 
