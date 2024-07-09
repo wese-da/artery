@@ -44,6 +44,7 @@ class SlotService : public ItsG5Service
         void handleMessage(omnetpp::cMessage*) override;
 
     private:
+        vanetza::asn1::Denm createMessageSkeleton();
         void sendDenm();
         void addManagementContainer(ManagementContainer_t& management);
         omnetpp::cMessage* m_self_msg;

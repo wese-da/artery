@@ -21,12 +21,15 @@
 #include <vanetza/asn1/denm.hpp>
 #include <vanetza/btp/data_request.hpp>
 #include <vanetza/btp/ports.hpp>
-
+#include <boost/units/systems/si/prefixes.hpp>
 
 using namespace omnetpp;
 
 namespace artery
 {
+static const auto microdegree = vanetza::units::degree * boost::units::si::micro;
+static const auto decidegree = vanetza::units::degree * boost::units::si::deci;
+static const auto centimeter_per_second = vanetza::units::si::meter_per_second * boost::units::si::centi;
 
 static const simsignal_t scSignalDenmReceived = cComponent::registerSignal("DenmReceived");
 static const simsignal_t scSignalDenmSent = cComponent::registerSignal("DenmSent");
@@ -91,14 +94,23 @@ void SlotService::sendDenm()
 {
 	auto message = createDecentralizedEnvironmentalNotificationMessage(*mVehicleDataProvider);
 
+    using vanetza::units::si::meter;
+
 	using namespace vanetza;
 	btp::DataRequestB request;
 	request.destination_port = btp::ports::DENM;
 	request.gn.its_aid = aid::DEN;
 	request.gn.transport_type = geonet::TransportType::GBC;
 	//request.gn.maximum_lifetime = geonet::Lifetime { geonet::Lifetime::Base::One_Second, 1 };
-	//request.gn.traffic_class.tc_id(static_cast<unsigned>(dcc::Profile::DP2));
-	request.gn.communication_profile = geonet::CommunicationProfile::ITS_G5;
+	request.gn.traffic_class.tc_id(1);
+
+    geonet::Area destination;
+    geonet::Circle destination_shape;
+    destination_shape.r = 1000.0 * meter;
+    destination.shape = destination_shape;
+    destination.position.latitude = mVehicleDataProvider->latitude();
+    destination.position.longitude = mVehicleDataProvider->longitude();
+    request.gn.destination = destination;
 
 	DenmObject obj(std::move(message));
 	emit(scSignalDenmSent, &obj);
@@ -108,12 +120,6 @@ void SlotService::sendDenm()
     std::unique_ptr<vanetza::convertible::byte_buffer> denm { new DenmConvertible { obj.shared_ptr() } };
     payload->layer(OsiLayer::Application) = vanetza::ByteBufferConvertible { std::move(denm) };
     this->request(request, std::move(payload));
-
-	// using DenmByteBuffer = convertible::byte_buffer_impl<asn1::Denm>;
-	// std::unique_ptr<geonet::DownPacket> payload { new geonet::DownPacket() };
-	// std::unique_ptr<convertible::byte_buffer> buffer { new DenmByteBuffer(obj.shared_ptr()) };
-	// payload->layer(OsiLayer::Application) = std::move(buffer);
-	// this->request(request, std::move(payload));
 
 }
 
@@ -136,12 +142,51 @@ void SlotService::receiveSignal(cComponent* source, simsignal_t signal, cObject*
 	}*/
 }
 
+vanetza::asn1::Denm SlotService::createMessageSkeleton()
+{
+    vanetza::asn1::Denm message;
+    message->header.protocolVersion = 1;
+    message->header.messageID = ItsPduHeader__messageID_denm;
+    message->header.stationID = mVehicleDataProvider->station_id();
+
+    // Do not copy ActionID itself (it also contains a context object)
+    //auto action_id = mService->requestActionID();
+    message->denm.management.actionID.originatingStationID = mVehicleDataProvider->station_id();
+    message->denm.management.actionID.sequenceNumber = action_id.sequenceNumber;
+    int ret = 0;
+    const auto taiTime = countTaiMilliseconds(mService->getTimer()->getTimeFor(mVehicleDataProvider->updated()));
+    ret += asn_long2INTEGER(&message->denm.management.detectionTime, taiTime);
+    ret += asn_long2INTEGER(&message->denm.management.referenceTime, taiTime);
+    assert(ret == 0);
+    message->denm.management.eventPosition.altitude.altitudeValue = AltitudeValue_unavailable;
+    message->denm.management.eventPosition.altitude.altitudeConfidence = AltitudeConfidence_unavailable;
+    message->denm.management.eventPosition.longitude = round(mVehicleDataProvider->longitude(), microdegree) * Longitude_oneMicrodegreeEast;
+    message->denm.management.eventPosition.latitude = round(mVehicleDataProvider->latitude(), microdegree) * Latitude_oneMicrodegreeNorth;
+    message->denm.management.eventPosition.positionConfidenceEllipse.semiMajorOrientation = HeadingValue_unavailable;
+    message->denm.management.eventPosition.positionConfidenceEllipse.semiMajorConfidence = SemiAxisLength_unavailable;
+    message->denm.management.eventPosition.positionConfidenceEllipse.semiMinorConfidence = SemiAxisLength_unavailable;
+
+    message->denm.location = vanetza::asn1::allocate<LocationContainer_t>();
+    message->denm.location->eventSpeed = vanetza::asn1::allocate<Speed>();
+    message->denm.location->eventSpeed->speedValue = std::abs(round(mVehicleDataProvider->speed(), centimeter_per_second)) * SpeedValue_oneCentimeterPerSec;
+    message->denm.location->eventSpeed->speedConfidence = SpeedConfidence_equalOrWithinOneCentimeterPerSec * 3;
+    message->denm.location->eventPositionHeading = vanetza::asn1::allocate<Heading>();
+    message->denm.location->eventPositionHeading->headingValue = round(mVehicleDataProvider->heading(), decidegree);
+    message->denm.location->eventPositionHeading->headingConfidence = HeadingConfidence_equalOrWithinOneDegree;
+
+    // TODO fill path history
+    auto path_history = vanetza::asn1::allocate<PathHistory_t>();
+    asn_sequence_add(&message->denm.location->traces, path_history);
+
+    return message;
+}
+
 vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage(const VehicleDataProvider& vdp)
 {
 
 	using namespace den;
 
-	vanetza::asn1::Denm message;
+	auto message = createMessageSkeleton();
 
 	// fill header
 	ItsPduHeader_t header = (*message).header;
@@ -157,8 +202,12 @@ vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage(const Ve
 	AlacarteContainer* alacarte = denm.alacarte;
 
 	// management
+	management.referenceTime = INTEGER_t{0};
+	management.detectionTime = INTEGER_t{0};
 	management.actionID.originatingStationID = vdp.station_id();
-	management.relevanceDistance = *RelevanceDistance_lessThan500m;
+
+    message->denm.management.validityDuration = vanetza::asn1::allocate<ValidityDuration_t>();
+    *message->denm.management.validityDuration = 20;
 
 
 	return message;
