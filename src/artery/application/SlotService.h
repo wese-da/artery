@@ -25,6 +25,7 @@ namespace artery
 {
 
 class VehicleDataProvider;
+class DenService;
 
 //namespace traci { class VehicleController; }
 
@@ -44,18 +45,17 @@ class SlotService : public ItsG5Service
         void handleMessage(omnetpp::cMessage*) override;
 
     private:
-        vanetza::asn1::Denm createMessageSkeleton();
+        vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage();
         void sendDenm();
         void addManagementContainer(ManagementContainer_t& management);
         omnetpp::cMessage* m_self_msg;
 		const Timer* mTimer = nullptr;
+        DenService* mService = nullptr;
 
 		const VehicleDataProvider* mVehicleDataProvider = nullptr;
 
         long mSequenceNumber = 1L;
 };
-
-vanetza::asn1::Denm createDecentralizedEnvironmentalNotificationMessage(const VehicleDataProvider&);
 
 } // namespace artery
 

@@ -7,11 +7,14 @@
 			<!--<type pattern="artery.inet.Person" match="inverse" />-->
 		</filters>
 	</service>
-	<service type="artery.application.SlotService">
+	<service type="artery.application.DenService">
+		<listener port="2002" />
+	</service>
+	<!--<service type="artery.application.SlotService">
 		<listener port="6666" />
 		<filters>
 			<name pattern="flow0\.1.*" />
 			<penetration rate="1.0" />
 		</filters>
-	</service>
+	</service>-->
 </services>
