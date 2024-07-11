@@ -10,7 +10,7 @@
 #include "artery/application/den/Memory.h"
 #include "artery/application/den/SuspendableUseCase.h"
 #include "artery/application/Sampling.h"
-#include "artery/traci/VehicleController.h"
+#include "artery/application/VehicleDataProvider.h"
 #include <vanetza/units/velocity.hpp>
 
 namespace artery
@@ -18,7 +18,7 @@ namespace artery
 
 // forward declaration
 class LocalDynamicMap;
-class VehicleController;
+class VehicleMiddleware;
 
 namespace den
 {
@@ -60,7 +60,8 @@ private:
     bool mNonUrbanEnvironment;
     SkipEarlySampler<vanetza::units::Velocity> mVelocitySampler;
 
-    const VehicleController* mVc = nullptr;
+    const VehicleMiddleware* mVm = nullptr;
+    //const VehicleController* mVc = nullptr;
     //const StationType_t mStationType;
 };
 

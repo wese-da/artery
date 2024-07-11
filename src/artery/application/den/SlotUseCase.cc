@@ -8,7 +8,7 @@
 #include "artery/application/LocalDynamicMap.h"
 #include "artery/application/den/SlotUseCase.h"
 #include "artery/application/SampleBufferAlgorithm.h"
-#include "artery/traci/VehicleController.h"
+#include "artery/application/VehicleMiddleware.h"
 #include <boost/units/base_units/metric/hour.hpp>
 #include <boost/units/systems/si/length.hpp>
 #include <boost/units/systems/si/time.hpp>
@@ -37,7 +37,8 @@ namespace den
 
 SlotUseCase::SlotUseCase()
 {
-    mVc = &mService->getFacilities().get_const<VehicleController>();
+    mVm = &mService->getFacilities().get_const<VehicleMiddleware>();
+    //mVc = &mService->getFacilities().get_const<VehicleController>();
     //*mVdp->setStationType(StationType_passengerCar);
 }
 
