@@ -10,6 +10,7 @@ namespace den
 
 enum class CauseCode
 {
+    Reserved = 0,
     TrafficCondition = 1,
     Accident = 2,
     Roadworks = 3,

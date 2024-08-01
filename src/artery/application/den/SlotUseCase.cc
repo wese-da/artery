@@ -37,7 +37,8 @@ namespace den
 
 SlotUseCase::SlotUseCase()
 {
-    mVm = &mService->getFacilities().get_const<VehicleMiddleware>();
+    //mVm = &mService->getFacilities().get_const<VehicleMiddleware>();
+
     //mVc = &mService->getFacilities().get_const<VehicleController>();
     //*mVdp->setStationType(StationType_passengerCar);
 }
@@ -83,7 +84,7 @@ bool SlotUseCase::checkConditions()
     const bool tc5 = false; // so far there are no emergency vehicles in simulation, assume false
     const bool tc6 = false; // simulated vehicle has no on-board sensors for end of queue detection, assume false
 
-    return (tc1 && tc2) || (tc0() && (tc2 || tc3() || tc4() || tc5 || tc6));
+    return true;//(tc1 && tc2) || (tc0() && (tc2 || tc3() || tc4() || tc5 || tc6));
 }
 
 bool SlotUseCase::checkEgoDeceleration() const
@@ -132,9 +133,20 @@ bool SlotUseCase::checkEgoDeceleration() const
 
 vanetza::asn1::Denm SlotUseCase::createMessage()
 {
+
+    auto ptr = mDenmMemory->messages(CauseCode::Reserved);
+    for (const auto & elem : ptr)
+    {
+        auto msg = *(elem.message).get();
+        StationType_t* sType = &msg->denm.management.stationType;
+        if (*sType == StationType_passengerCar) {
+            //&msg.denm.location.
+        }
+    }
+
     auto msg = createMessageSkeleton();
     msg->denm.management.relevanceDistance = vanetza::asn1::allocate<RelevanceDistance_t>();
-    *msg->denm.management.relevanceDistance = RelevanceDistance_lessThan1000m;
+    *msg->denm.management.relevanceDistance = RelevanceDistance_lessThan100m;
     msg->denm.management.relevanceTrafficDirection = vanetza::asn1::allocate<RelevanceTrafficDirection_t>();
     *msg->denm.management.relevanceTrafficDirection = RelevanceTrafficDirection_allTrafficDirections;
     msg->denm.management.validityDuration = vanetza::asn1::allocate<ValidityDuration_t>();
@@ -143,11 +155,19 @@ vanetza::asn1::Denm SlotUseCase::createMessage()
 
     msg->denm.situation = vanetza::asn1::allocate<SituationContainer_t>();
     msg->denm.situation->informationQuality = 1;
-    msg->denm.situation->eventType.causeCode = CauseCodeType_dangerousEndOfQueue;
+    msg->denm.situation->eventType.causeCode = CauseCodeType_reserved;
     msg->denm.situation->eventType.subCauseCode = 0;
 
     // TODO set road type in Location container
+
+    double vSpeed = mVdp->speed().value();
+    Speed* eventSpeed = vanetza::asn1::allocate<Speed>();
+    eventSpeed->speedValue = vSpeed;
+    eventSpeed->speedConfidence = SpeedConfidence_unavailable;
+    msg->denm.location->eventSpeed = eventSpeed;
+
     // TODO set lane position in Alacarte container
+
     return msg;
 }
 
@@ -166,8 +186,11 @@ vanetza::btp::DataRequestB SlotUseCase::createRequest()
     request.gn.repetition = repetition;
 
     geonet::Area destination;
-    geonet::Circle destination_shape;
-    destination_shape.r = 1000.0 * meter;
+    geonet::Rectangle destination_shape;
+    //geonet::Circle destination_shape;
+    //destination_shape.r = 1000.0 * meter;
+    destination_shape.a = 10 * meter;
+    destination_shape.b = 5 * meter;
     destination.shape = destination_shape;
     destination.position.latitude = mVdp->latitude();
     destination.position.longitude = mVdp->longitude();
